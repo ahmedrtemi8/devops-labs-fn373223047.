@@ -17,3 +17,4 @@ TODO
 ## When something breaks / Когато нещо се счупи
 
 TODO: the first three things you check. / първите три неща, които проверявате.
+ 
