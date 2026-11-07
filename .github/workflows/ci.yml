@@ -1,13 +1,5 @@
-name: CI
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
-jobs:
-  test:
-    runs-on: ubuntu-24.04
-    # ... rest of your job configuration
-          pytest -v
