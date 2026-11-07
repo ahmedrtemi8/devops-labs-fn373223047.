@@ -1,6 +1,7 @@
 # Notes API: учебно приложение за курса по DevOps
 
 **Български** · [English](#notes-api--devops-course-starter-app)
+[![CI](https://github.com/ahmedrtemi8/devops-labs-fn373223047./actions/workflows/ci.yml/badge.svg)](https://github.com/ahmedrtemi8/devops-labs-fn373223047./actions/workflows/ci.yml)
 
 Малко приложение за бележки, написано на Python с FastAPI. То е отправната точка за всички упражнения в курса: в него ще добавяте контейнери, база данни, автоматични проверки, внедряване и т.н. Самото приложение нарочно е просто: целта на курса е всичко около него.
 
