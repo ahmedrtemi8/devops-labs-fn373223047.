@@ -1,4 +1,45 @@
-build:
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: notes
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: notes
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ruff pytest httpx
+      - name: Lint with Ruff
+        run: ruff check .
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://notes:ci-only@localhost:5432/notes
+        run: pytest
+
+  build:
     needs: test
     runs-on: ubuntu-24.04
     permissions:
@@ -6,7 +47,7 @@ build:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set lowercase image name
         run: |
           echo "IMAGE=ghcr.io/${{ github.repository_owner }}/notes-api" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
@@ -36,3 +77,31 @@ build:
             docker tag notes-api:${{ github.sha }} ${{ env.IMAGE }}:latest
             docker push ${{ env.IMAGE }}:latest
           fi
+
+  docs:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install MkDocs
+        run: pip install mkdocs mkdocs-material
+      - name: Build docs
+        run: mkdocs build --site-dir site
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
