@@ -1,5 +1,6 @@
-cat << 'EOF' > .github/workflows/ci.yml
-name: CI/CD
+python3 -c '
+path = ".github/workflows/ci.yml"
+content = """name: CI/CD
 
 on:
   push:
@@ -71,7 +72,7 @@ jobs:
           docker stop notes-api
 
       - name: Push to GitHub Container Registry
-        if: github.event_name == 'push'
+        if: github.event_name == '\''push'\''
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker push "$IMAGE:${{ github.sha }}"
@@ -83,4 +84,8 @@ jobs:
             docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:${{ github.ref_name }}"
             docker push "$IMAGE:${{ github.ref_name }}"
           fi
-EOF
+"""
+with open(path, "w") as f:
+    f.write(content)
+print("Successfully wrote ci.yml")
+'
