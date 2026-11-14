@@ -1,4 +1,4 @@
-Name: CI/CD
+name: CI/CD
 
 on:
   push:
@@ -42,7 +42,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set lowercase image name
         run: |
           echo "IMAGE=ghcr.io/${{ github.repository_owner }}/notes-api" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
