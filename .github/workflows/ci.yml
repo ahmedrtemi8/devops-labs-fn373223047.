@@ -69,6 +69,14 @@ jobs:
           curl --fail http://localhost:8000/docs
           docker stop notes-api
 
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "${{ env.IMAGE }}:${{ github.sha }}"
+          severity: 'CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+
       - name: Push to GitHub Container Registry
         if: github.event_name == 'push'
         run: |
