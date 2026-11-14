@@ -1,40 +1,4 @@
-name: CI/CD
-
-on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*' ]
-  pull_request:
-
-jobs:
-  test:
-    runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: notes
-          POSTGRES_PASSWORD: ci-only
-          POSTGRES_DB: notes
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U notes"
-          --health-interval 5s
-          --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgresql://notes:ci-only@localhost:5432/notes
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: pip install -r requirements-dev.txt
-      - run: ruff check .
-      - run: pytest -v
-
-  build:
+build:
     needs: test
     runs-on: ubuntu-24.04
     permissions:
@@ -42,7 +6,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Set lowercase image name
         run: |
           echo "IMAGE=ghcr.io/${{ github.repository_owner }}/notes-api" | tr '[:upper:]' '[:lower:]' >> $GITHUB_ENV
@@ -57,7 +21,6 @@ jobs:
           docker logs app; exit 1
 
       - name: Log in to the Container registry
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -65,7 +28,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
-        if: github.event_name != 'pull_request'
         run: |
           docker tag notes-api:${{ github.sha }} ${{ env.IMAGE }}:${{ github.sha }}
           docker push ${{ env.IMAGE }}:${{ github.sha }}
@@ -74,32 +36,3 @@ jobs:
             docker tag notes-api:${{ github.sha }} ${{ env.IMAGE }}:latest
             docker push ${{ env.IMAGE }}:latest
           fi
-
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            docker tag notes-api:${{ github.sha }} ${{ env.IMAGE }}:${{ github.ref_name }}
-            docker push ${{ env.IMAGE }}:${{ github.ref_name }}
-          fi
-
-  docs:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements-dev.txt
-      - run: mkdocs build --strict
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-      - id: deploy
-        uses: actions/deploy-pages@v4
