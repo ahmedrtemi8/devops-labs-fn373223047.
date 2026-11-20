@@ -50,27 +50,13 @@ jobs:
 
           docker network create smoke
 
-          docker run -d --name db --network smoke \
-
-            -e POSTGRES_USER=notes -e POSTGRES_PASSWORD=ci-only -e POSTGRES_DB=notes \
-
-            postgres:17-alpine
+          docker run -d --name db --network smoke -e POSTGRES_USER=notes -e POSTGRES_PASSWORD=ci-only -e POSTGRES_DB=notes postgres:17-alpine
 
           until docker exec db pg_isready -U notes; do sleep 2; done
 
-          docker run -d --name smoke --network smoke -p 8000:8000 \
+          docker run -d --name smoke --network smoke -p 8000:8000 -e DATABASE_URL=postgresql://notes:ci-only@db:5432/notes "$IMAGE:${{ github.sha }}"
 
-            -e DATABASE_URL=postgresql://notes:ci-only@db:5432/notes \
-
-            "$IMAGE:${{ github.sha }}"
-
-          for i in $(seq 1 20); do
-
-            curl -fs localhost:8000/ready && exit 0
-
-            sleep 2
-
-          done
+          for i in $(seq 1 20); do curl -fs localhost:8000/ready && exit 0; sleep 2; done
 
           docker logs smoke
 
