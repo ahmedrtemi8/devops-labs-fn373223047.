@@ -41,7 +41,7 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
-      - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+      - run: R="${GITHUB_REPOSITORY,,}"; echo "IMAGE=ghcr.io/${R%.}" >> $GITHUB_ENV
       - name: Build image
         run: docker build -t "$IMAGE:${{ github.sha }}" .
       - name: Smoke test
