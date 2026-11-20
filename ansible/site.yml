@@ -12,3 +12,61 @@
         state: present
         update_cache: true
         cache_valid_time: 3600
+
+- name: Configure PostgreSQL database server
+  hosts: db
+  become: true
+  vars:
+    db_name: notes
+    db_user: notes
+    db_password: notes_password
+  tasks:
+    - name: Install PostgreSQL and Python driver
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - python3-psycopg2
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Configure PostgreSQL to listen on all addresses
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/17/main/postgresql.conf
+        regexp: '^#?listen_addresses\s*='
+        line: "listen_addresses = '*'"
+      notify: Restart PostgreSQL
+
+    - name: Allow password authentication over TCP in pg_hba.conf
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/17/main/pg_hba.conf
+        regexp: '^host\s+all\s+all\s+0\.0\.0\.0/0'
+        line: "host all all 0.0.0.0/0 scram-sha-256"
+      notify: Restart PostgreSQL
+    - name: Ensure PostgreSQL is running
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: Flush handlers before database setup
+      ansible.builtin.meta: flush_handlers
+    - name: Create database user
+      community.postgresql.postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_password }}"
+        state: present
+      become_user: postgres
+
+    - name: Create application database
+      community.postgresql.postgresql_db:
+        name: "{{ db_name }}"
+        owner: "{{ db_user }}"
+        state: present
+      become_user: postgres
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
