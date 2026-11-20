@@ -1,14 +1,26 @@
+<<<<<<< HEAD
 name: CI
+=======
+name: CI/CD
+>>>>>>> a5ef1cfbce8ab671225c42f9ae9f5be2f060cad3
 
 on:
   push:
     branches: [ main ]
+<<<<<<< HEAD
   pull_request:
     branches: [ main ]
 
 jobs:
   test:
     name: test
+=======
+    tags: [ 'v*' ]
+  pull_request:
+
+jobs:
+  test:
+>>>>>>> a5ef1cfbce8ab671225c42f9ae9f5be2f060cad3
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -22,6 +34,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U notes"
           --health-interval 5s
+<<<<<<< HEAD
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgresql://notes:ci-only@localhost:5432/notes
@@ -56,3 +69,90 @@ jobs:
           docker run -d --name app -p 8000:8000 notes-api:${{ github.sha }}
           for _ in $(seq 1 20); do curl -fsS http://localhost:8000/health && exit 0 || sleep 1; done
           docker logs app; exit 1
+=======
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest
+        env:
+          DATABASE_URL: postgresql://notes:ci-only@localhost:5432/notes
+
+  build:
+    needs: test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - run: R="${GITHUB_REPOSITORY,,}"; echo "IMAGE=ghcr.io/${R%.}" >> $GITHUB_ENV
+      - name: Build image
+        run: docker build -t "$IMAGE:${{ github.sha }}" .
+      - name: Smoke test
+
+        run: |
+
+          docker network create smoke
+
+          docker run -d --name db --network smoke -e POSTGRES_USER=notes -e POSTGRES_PASSWORD=ci-only -e POSTGRES_DB=notes postgres:17-alpine
+
+          until docker exec db pg_isready -U notes; do sleep 2; done
+
+          docker run -d --name smoke --network smoke -p 8000:8000 -e DATABASE_URL=postgresql://notes:ci-only@db:5432/notes "$IMAGE:${{ github.sha }}"
+
+          for i in $(seq 1 20); do curl -fs localhost:8000/ready && exit 0; sleep 2; done
+
+          docker logs smoke
+
+          exit 1
+
+      - name: Scan for vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Push to GitHub Container Registry
+        if: github.event_name == 'push'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker push "$IMAGE:${{ github.sha }}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:${{ github.ref_name }}"
+            docker push "$IMAGE:${{ github.ref_name }}"
+          fi
+
+  docs:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-docs.txt
+      - run: mkdocs build --strict
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+>>>>>>> a5ef1cfbce8ab671225c42f9ae9f5be2f060cad3

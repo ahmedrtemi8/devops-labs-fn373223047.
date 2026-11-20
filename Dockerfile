@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12
 RUN useradd -u 1000 appuser
 WORKDIR /app
 COPY requirements.txt .
