@@ -43,6 +43,7 @@
         regexp: '^host\s+all\s+all\s+0\.0\.0\.0/0'
         line: "host all all 0.0.0.0/0 scram-sha-256"
       notify: Restart PostgreSQL
+
     - name: Ensure PostgreSQL is running
       ansible.builtin.service:
         name: postgresql
@@ -51,6 +52,7 @@
 
     - name: Flush handlers before database setup
       ansible.builtin.meta: flush_handlers
+
     - name: Create database user
       community.postgresql.postgresql_user:
         name: "{{ db_user }}"
@@ -70,3 +72,53 @@
       ansible.builtin.service:
         name: postgresql
         state: restarted
+
+- name: Configure web application servers
+  hosts: web
+  become: true
+  vars:
+    database_url: postgresql://notes:notes_password@db:5432/notes
+  tasks:
+    - name: Install Python venv, packaging, and git
+      ansible.builtin.apt:
+        name:
+          - python3-venv
+          - python3-packaging
+          - git
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Clone application repository into /opt/notes
+      ansible.builtin.git:
+        repo: "https://x-access-token:{{ lookup('env', 'GITHUB_TOKEN') }}@github.com/ahmedrtemi8/devops-labs-fn373223047."
+        dest: /opt/notes
+        version: main
+      notify: Restart notes
+
+    - name: Install Python dependencies into virtualenv
+      ansible.builtin.pip:
+        requirements: /opt/notes/requirements.txt
+        virtualenv: /opt/notes/.venv
+        virtualenv_command: python3 -m venv
+
+    - name: Deploy systemd service template
+      ansible.builtin.template:
+        src: templates/notes.service.j2
+        dest: /etc/systemd/system/notes.service
+        mode: "0644"
+      notify: Restart notes
+
+    - name: Ensure notes service is started and enabled
+      ansible.builtin.systemd:
+        name: notes
+        state: started
+        enabled: true
+        daemon_reload: true
+
+  handlers:
+    - name: Restart notes
+      ansible.builtin.systemd:
+        name: notes
+        state: restarted
+        daemon_reload: true
