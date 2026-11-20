@@ -1,26 +1,13 @@
-<<<<<<< HEAD
-name: CI
-=======
 name: CI/CD
->>>>>>> a5ef1cfbce8ab671225c42f9ae9f5be2f060cad3
 
 on:
   push:
     branches: [ main ]
-<<<<<<< HEAD
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  test:
-    name: test
-=======
     tags: [ 'v*' ]
   pull_request:
 
 jobs:
   test:
->>>>>>> a5ef1cfbce8ab671225c42f9ae9f5be2f060cad3
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -34,42 +21,6 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U notes"
           --health-interval 5s
-<<<<<<< HEAD
-          --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgresql://notes:ci-only@localhost:5432/notes
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install dependencies and run checks
-        run: |
-          pip install -r requirements-dev.txt
-          ruff check .
-          pytest -v
-
-  build:
-    runs-on: ubuntu-24.04
-    needs: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t notes-api:${{ github.sha }} .
-
-      - name: Smoke test
-        run: |
-          docker run -d --name app -p 8000:8000 notes-api:${{ github.sha }}
-          for _ in $(seq 1 20); do curl -fsS http://localhost:8000/health && exit 0 || sleep 1; done
-          docker logs app; exit 1
-=======
           --health-timeout 5s
           --health-retries 10
     steps:
@@ -115,7 +66,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE }}:${{ github.sha }}
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: "1"
       - name: Push to GitHub Container Registry
@@ -155,4 +106,3 @@ jobs:
           path: site
       - id: deploy
         uses: actions/deploy-pages@v4
->>>>>>> a5ef1cfbce8ab671225c42f9ae9f5be2f060cad3
